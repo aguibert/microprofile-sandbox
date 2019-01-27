@@ -14,15 +14,19 @@
  * limitations under the License.
  */
 
-package io.r2dbc.client;
+package org.eclipse.microprofile.r2dbc.client;
 
-import io.r2dbc.client.util.Assert;
-import io.r2dbc.client.util.ReactiveUtils;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.ConnectionFactory;
+
+import org.eclipse.microprofile.r2dbc.client.util.Assert;
+import org.eclipse.microprofile.reactive.streams.operators.CompletionRunner;
+import org.eclipse.microprofile.reactive.streams.operators.PublisherBuilder;
+import org.eclipse.microprofile.reactive.streams.operators.ReactiveStreams;
+
+import static org.eclipse.microprofile.r2dbc.client.util.ReactiveUtils.*;
+import static org.eclipse.microprofile.reactive.streams.operators.ReactiveStreams.*;
 import org.reactivestreams.Publisher;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 import java.util.function.Function;
 
@@ -53,7 +57,7 @@ public final class R2dbc {
      * @see Connection#commitTransaction()
      * @see Connection#rollbackTransaction()
      */
-    public <T> Flux<T> inTransaction(Function<Handle, ? extends Publisher<? extends T>> f) {
+    public <T> PublisherBuilder<T> inTransaction(Function<Handle, ? extends PublisherBuilder<? extends T>> f) {
         Assert.requireNonNull(f, "f must not be null");
 
         return withHandle(handle -> handle.inTransaction(f));
@@ -65,10 +69,12 @@ public final class R2dbc {
      * @return a new {@link Handle}, ready to use
      * @see Handle#close()
      */
-    public Mono<Handle> open() {
-        return Mono.from(
-            this.connectionFactory.create())
-            .map(Handle::new);
+    public PublisherBuilder<Handle> open() {
+    	return ReactiveStreams.fromPublisher(this.connectionFactory.create())
+    			.map(Handle::new);
+//        return Mono.from(
+//            this.connectionFactory.create())
+//            .map(Handle::new);
     }
 
     @Override
@@ -85,11 +91,13 @@ public final class R2dbc {
      * @return a {@link Mono} that execution is complete
      * @throws IllegalArgumentException if {@code f} is {@code null}
      */
-    public Mono<Void> useHandle(Function<Handle, ? extends Publisher<?>> f) {
+    public CompletionRunner<Void> useHandle(Function<Handle, ? extends PublisherBuilder<?>> f) {
         Assert.requireNonNull(f, "f must not be null");
 
         return withHandle(f)
-            .then();
+        		.ignore();
+//        return withHandle(f)
+//            .then();
     }
 
     /**
@@ -101,7 +109,7 @@ public final class R2dbc {
      * @see Connection#commitTransaction()
      * @see Connection#rollbackTransaction()
      */
-    public Mono<Void> useTransaction(Function<Handle, ? extends Publisher<?>> f) {
+    public CompletionRunner<Void> useTransaction(Function<Handle, ? extends PublisherBuilder<?>> f) {
         Assert.requireNonNull(f, "f must not be null");
 
         return useHandle(handle -> handle.useTransaction(f));
@@ -115,14 +123,19 @@ public final class R2dbc {
      * @return a {@link Flux} of results
      * @throws IllegalArgumentException if {@code f} is {@code null}
      */
-    public <T> Flux<T> withHandle(Function<Handle, ? extends Publisher<? extends T>> f) {
+    public <T> PublisherBuilder<T> withHandle(Function<Handle, ? extends PublisherBuilder<? extends T>> f) {
         Assert.requireNonNull(f, "f must not be null");
 
         return open()
-            .flatMapMany(handle -> Flux.from(
-                f.apply(handle))
-                .concatWith(ReactiveUtils.typeSafe(handle::close))
-                .onErrorResume(ReactiveUtils.appendError(handle::close)));
+        		.flatMap(handle -> concat(
+        				f.apply(handle),
+        				typeSafe(handle::close))
+        			.onErrorResumeWith(appendError(handle::close)));
+//        return open()
+//            .flatMapMany(handle -> Flux.from(
+//                f.apply(handle))
+//                .concatWith(ReactiveUtils.typeSafe(handle::close))
+//                .onErrorResume(ReactiveUtils.appendError(handle::close)));
     }
 
 }

@@ -44,11 +44,30 @@
 		    <artifactId>microprofile-reactive-streams-operators-api</artifactId>
 		    <version>1.0</version>
 		</dependency>
+		
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
             <scope>test</scope>
         </dependency>
+        
+        <dependency>
+			<groupId>io.smallrye.reactive</groupId>
+		    <artifactId>smallrye-reactive-streams-operators</artifactId>
+		  	<version>1.0.0</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>io.r2dbc</groupId>
+			<artifactId>r2dbc-h2</artifactId>
+			<version>1.0.0.M6</version>
+		</dependency>
+		
+		<dependency>
+			<groupId>io.r2dbc</groupId>
+			<artifactId>r2dbc-client</artifactId>
+			<version>1.0.0.M6</version>
+		</dependency>
     </dependencies>
 
     <build>

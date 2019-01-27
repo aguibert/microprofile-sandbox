@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-package io.r2dbc.client.util;
-
-import reactor.util.annotation.Nullable;
+package org.eclipse.microprofile.r2dbc.client.util;
 
 /**
  * Assertion library for the implementation.
@@ -35,7 +33,7 @@ public final class Assert {
      * @return {@code t} if not {@code null}
      * @throws IllegalArgumentException if {@code t} is {code null}
      */
-    public static <T> T requireNonNull(@Nullable T t, String message) {
+    public static <T> T requireNonNull(T t, String message) {
         if (t == null) {
             throw new IllegalArgumentException(message);
         }

@@ -18,7 +18,4 @@
  * Utility code used throughout the project.
  */
 
-@NonNullApi
-package io.r2dbc.client.util;
-
-import reactor.util.annotation.NonNullApi;
+package org.eclipse.microprofile.r2dbc.client.util;

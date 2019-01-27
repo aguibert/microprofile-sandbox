@@ -18,7 +18,4 @@
  * The client Reactive Relational Database Connection API.
  */
 
-@NonNullApi
-package io.r2dbc.client;
-
-import reactor.util.annotation.NonNullApi;
+package org.eclipse.microprofile.r2dbc.client;

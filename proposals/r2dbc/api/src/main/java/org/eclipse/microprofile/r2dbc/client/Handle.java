@@ -14,20 +14,21 @@
  * limitations under the License.
  */
 
-package io.r2dbc.client;
+package org.eclipse.microprofile.r2dbc.client;
 
-import io.r2dbc.client.util.Assert;
 import io.r2dbc.spi.Connection;
 import io.r2dbc.spi.IsolationLevel;
+
+import org.eclipse.microprofile.r2dbc.client.util.Assert;
+import org.eclipse.microprofile.reactive.streams.operators.PublisherBuilder;
+import org.eclipse.microprofile.reactive.streams.operators.ReactiveStreams;
 import org.reactivestreams.Publisher;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
+
+import static org.eclipse.microprofile.r2dbc.client.util.ReactiveUtils.*;
+import static org.eclipse.microprofile.reactive.streams.operators.ReactiveStreams.*;
 
 import java.util.function.Function;
 import java.util.stream.IntStream;
-
-import static io.r2dbc.client.util.ReactiveUtils.appendError;
-import static io.r2dbc.client.util.ReactiveUtils.typeSafe;
 
 /**
  * A wrapper for a {@link Connection} providing additional convenience APIs.
@@ -38,6 +39,7 @@ public final class Handle {
 
     Handle(Connection connection) {
         this.connection = Assert.requireNonNull(connection, "connection must not be null");
+        System.out.println("@AGG created new handle: " + this);
     }
 
     /**
@@ -46,6 +48,7 @@ public final class Handle {
      * @return a {@link Publisher} that indicates that the transaction is open
      */
     public Publisher<Void> beginTransaction() {
+    	System.out.println("@AGG tx begin");
         return this.connection.beginTransaction();
     }
 
@@ -55,6 +58,7 @@ public final class Handle {
      * @return a {@link Publisher} that termination is complete
      */
     public Publisher<Void> close() {
+    	System.out.println("@AGG close handle");
         return this.connection.close();
     }
 
@@ -64,6 +68,7 @@ public final class Handle {
      * @return a {@link Publisher} that indicates that a transaction has been committed
      */
     public Publisher<Void> commitTransaction() {
+    	System.out.println("@AGG tx commit");
         return this.connection.commitTransaction();
     }
 
@@ -96,10 +101,10 @@ public final class Handle {
      * @return a {@link Publisher} that indicates that a savepoint has been created
      * @throws IllegalArgumentException if {@code name} is {@code null}
      */
-    public Publisher<Void> createSavepoint(String name) {
+    public PublisherBuilder<Void> createSavepoint(String name) {
         Assert.requireNonNull(name, "name must not be null");
 
-        return this.connection.createSavepoint(name);
+        return fromPublisher(this.connection.createSavepoint(name));
     }
 
     /**
@@ -123,7 +128,7 @@ public final class Handle {
      * @return the number of rows that were updated
      * @throws IllegalArgumentException if {@code sql} or {@code parameters} is {@code null}
      */
-    public Flux<Integer> execute(String sql, Object... parameters) {
+    public PublisherBuilder<Integer> execute(String sql, Object... parameters) {
         Assert.requireNonNull(sql, "sql must not be null");
         Assert.requireNonNull(parameters, "parameters must not be null");
 
@@ -145,18 +150,26 @@ public final class Handle {
      * @see Connection#commitTransaction()
      * @see Connection#rollbackTransaction()
      */
-    @SuppressWarnings("unchecked")
-    public <T> Flux<T> inTransaction(Function<Handle, ? extends Publisher<? extends T>> f) {
+    public <T> PublisherBuilder<T> inTransaction(Function<Handle, ? extends PublisherBuilder<? extends T>> f) {
         Assert.requireNonNull(f, "f must not be null");
 
-        return Mono.from(
-            beginTransaction())
-            .thenMany((Publisher<T>) f.apply(this))
-            .concatWith(typeSafe(this::commitTransaction))
-            .onErrorResume(appendError(this::rollbackTransaction));
+        @SuppressWarnings("unchecked")
+		PublisherBuilder<T> first = cat(fromPublisher(beginTransaction()), (PublisherBuilder<T>) f.apply(this));
+        PublisherBuilder<T> finisher = fromPublisher(commitTransaction())
+        		.flatMap(v -> {
+        			System.out.println("@AGG empty 1");
+        			return ReactiveStreams.<T>empty();
+        		})
+    			.onErrorResumeWith(appendError(this::rollbackTransaction));
+        return concat(first, finisher);
+//        return Mono.from(
+//            beginTransaction())
+//            .thenMany((Publisher<T>) f.apply(this))
+//            .concatWith(typeSafe(this::commitTransaction))
+//            .onErrorResume(appendError(this::rollbackTransaction));
     }
 
-    /**
+	/**
      * Execute behavior within a transaction returning results.  The transaction is committed if the behavior completes successfully, and rolled back it produces an error.
      *
      * @param isolationLevel the isolation level of the transaction
@@ -168,14 +181,18 @@ public final class Handle {
      * @see Connection#commitTransaction()
      * @see Connection#rollbackTransaction()
      */
-    @SuppressWarnings("unchecked")
-    public <T> Flux<T> inTransaction(IsolationLevel isolationLevel, Function<Handle, ? extends Publisher<? extends T>> f) {
+    public <T> PublisherBuilder<T> inTransaction(IsolationLevel isolationLevel, Function<Handle, ? extends PublisherBuilder<? extends T>> f) {
         Assert.requireNonNull(isolationLevel, "isolationLevel must not be null");
         Assert.requireNonNull(f, "f must not be null");
 
-        return inTransaction(handle -> Flux.from(handle
-            .setTransactionIsolationLevel(isolationLevel))
-            .thenMany((Publisher<T>) f.apply(this)));
+       return inTransaction(handle -> {
+    	   System.out.println("@AGG with iso lvl");
+    	   handle.setTransactionIsolationLevel(isolationLevel);
+    	   return f.apply(this);
+       });
+//        return inTransaction(handle -> Flux.from(handle
+//            .setTransactionIsolationLevel(isolationLevel))
+//            .thenMany((Publisher<T>) f.apply(this)));
     }
 
     /**
@@ -197,6 +214,7 @@ public final class Handle {
      * @return a {@link Publisher} that indicates that a transaction has been rolled back
      */
     public Publisher<Void> rollbackTransaction() {
+    	System.out.println("@AGG tx rollback");
         return this.connection.rollbackTransaction();
     }
 
@@ -229,6 +247,8 @@ public final class Handle {
 
         IntStream.range(0, parameters.length)
             .forEach(i -> query.bind(i, parameters[i]));
+        
+        System.out.println("@AGG created query");
 
         return query.add();
     }
@@ -262,11 +282,13 @@ public final class Handle {
      * @see Connection#commitTransaction()
      * @see Connection#rollbackTransaction()
      */
-    public Mono<Void> useTransaction(Function<Handle, ? extends Publisher<?>> f) {
+    public PublisherBuilder<Void> useTransaction(Function<Handle, ? extends PublisherBuilder<?>> f) {
         Assert.requireNonNull(f, "f must not be null");
 
         return inTransaction(f)
-            .then();
+        		.map(null);
+//        return inTransaction(f)
+//            .then();
     }
 
     /**
@@ -280,12 +302,14 @@ public final class Handle {
      * @see Connection#commitTransaction()
      * @see Connection#rollbackTransaction()
      */
-    public Mono<Void> useTransaction(IsolationLevel isolationLevel, Function<Handle, ? extends Publisher<?>> f) {
+    public PublisherBuilder<Void> useTransaction(IsolationLevel isolationLevel, Function<Handle, ? extends PublisherBuilder<?>> f) {
         Assert.requireNonNull(isolationLevel, "isolationLevel must not be null");
         Assert.requireNonNull(f, "f must not be null");
 
         return inTransaction(isolationLevel, f)
-            .then();
+        		.map(null);
+//        return inTransaction(isolationLevel, f)
+//            .then();
     }
 
 }

@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-package io.r2dbc.client;
+package org.eclipse.microprofile.r2dbc.client;
 
-import io.r2dbc.client.util.Assert;
+import org.eclipse.microprofile.r2dbc.client.util.Assert;
+import org.eclipse.microprofile.reactive.streams.operators.PublisherBuilder;
+import org.eclipse.microprofile.reactive.streams.operators.ReactiveStreams;
+
 import io.r2dbc.spi.Result;
 import io.r2dbc.spi.Statement;
-import org.reactivestreams.Publisher;
-import reactor.core.publisher.Flux;
-
-import java.util.function.Function;
 
 /**
- * A wrapper for a {@link Statement} providing additional convenience APIs for running queries such as {@code SELECT}.
+ * A wrapper for a {@link Statement} providing additional convenience APIs for running updates such as {@code INSERT} and {@code DELETE}.
  */
-public final class Query implements ResultBearing {
+public final class Update {
 
     private final Statement<?> statement;
 
-    Query(Statement<?> statement) {
+    Update(Statement<?> statement) {
         this.statement = Assert.requireNonNull(statement, "statement must not be null");
     }
 
@@ -40,7 +39,7 @@ public final class Query implements ResultBearing {
      *
      * @return this {@link Statement}
      */
-    public Query add() {
+    public Update add() {
         this.statement.add();
         return this;
     }
@@ -53,7 +52,7 @@ public final class Query implements ResultBearing {
      * @return this {@link Statement}
      * @throws IllegalArgumentException if {@code identifier} or {@code value} is {@code null}
      */
-    public Query bind(Object identifier, Object value) {
+    public Update bind(Object identifier, Object value) {
         Assert.requireNonNull(identifier, "identifier must not be null");
         Assert.requireNonNull(value, "value must not be null");
 
@@ -69,7 +68,7 @@ public final class Query implements ResultBearing {
      * @return this {@link Statement}
      * @throws IllegalArgumentException if {@code identifier} or {@code type} is {@code null}
      */
-    public Query bindNull(Object identifier, Class<?> type) {
+    public Update bindNull(Object identifier, Class<?> type) {
         Assert.requireNonNull(identifier, "identifier must not be null");
         Assert.requireNonNull(type, "type must not be null");
 
@@ -77,25 +76,28 @@ public final class Query implements ResultBearing {
         return this;
     }
 
-    public <T> Flux<T> mapResult(Function<Result, ? extends Publisher<? extends T>> f) {
-        Assert.requireNonNull(f, "f must not be null");
-
-        return Flux
-            .from(this.statement.execute())
-            .flatMap(f::apply);
+    /**
+     * Executes the update and returns the number of rows that were updated.
+     *
+     * @return the number of rows that were updated
+     */
+    public PublisherBuilder<Integer> execute() {
+        return ReactiveStreams
+            .fromPublisher(this.statement.execute())
+            .flatMapRsPublisher(Result::getRowsUpdated);
     }
 
     @Override
     public String toString() {
-        return "Query{" +
+        return "Update{" +
             "statement=" + this.statement +
             '}';
     }
 
-    Query bind(int identifier, Object value) {
+    Update bind(int index, Object value) {
         Assert.requireNonNull(value, "value must not be null");
 
-        this.statement.bind(identifier, value);
+        this.statement.bind(index, value);
         return this;
     }
 
