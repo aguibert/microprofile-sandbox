@@ -20,10 +20,14 @@ package org.eclipse.microprofile.system.test.testcontainers;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 
+import org.eclipse.microprofile.system.test.jupiter.JwtBuilder;
+import org.eclipse.microprofile.system.test.jupiter.JwtConfig;
 import org.eclipse.microprofile.system.test.jupiter.SharedContainerConfig;
 import org.eclipse.microprofile.system.test.jupiter.SharedContainerConfiguration;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
@@ -74,11 +78,38 @@ public class TestcontainersConfiguration {
             LOG.debug("No networks explicitly defined. Using shared network for all containers in " + testClass);
             unsharedContainers.forEach(c -> c.setNetwork(Network.SHARED));
         }
+
+        if (isJwtNeeded()) {
+            Stream.concat(unsharedContainers.stream(), sharedContainers.stream())
+                            .filter(c -> MicroProfileApplication.class.isAssignableFrom(c.getClass()))
+                            .filter(c -> !c.isRunning())
+                            .filter(c -> !c.getEnvMap().containsKey(JwtBuilder.MP_JWT_PUBLIC_KEY))
+                            .filter(c -> !c.getEnvMap().containsKey(JwtBuilder.MP_JWT_ISSUER))
+                            .forEach(c -> {
+                                c.withEnv(JwtBuilder.MP_JWT_PUBLIC_KEY, JwtBuilder.getPublicKey());
+                                c.withEnv(JwtBuilder.MP_JWT_ISSUER, JwtConfig.DEFAULT_ISSUER);
+                                LOG.debug("Using default generated JWT settings for " + c);
+                            });
+        }
     }
 
     public void startContainers() {
-        Set<GenericContainer<?>> containersToStart = new HashSet<>();
-        containersToStart.addAll(sharedContainers);
+        List<GenericContainer<?>> containersToStart = new ArrayList<>();
+
+        // Start shared containers first
+        if (sharedConfigClass != null) {
+            try {
+                SharedContainerConfiguration config = sharedConfigClass.newInstance();
+                config.startContainers();
+                LOG.debug("Shared contianer config for " + sharedConfigClass + " implemented a manual start procedure.");
+            } catch (InstantiationException | IllegalAccessException e) {
+                throw new ExtensionConfigurationException("Unable to instantiate " + sharedConfigClass, e);
+            } catch (UnsupportedOperationException ignore) {
+                // This just means manual container start is not being used
+                containersToStart.addAll(sharedContainers);
+            }
+        }
+
         containersToStart.addAll(unsharedContainers);
         containersToStart.removeIf(c -> c.isRunning());
 
@@ -99,6 +130,17 @@ public class TestcontainersConfiguration {
                                                       "The contianer must be running in order to obtain its URL.");
 
         return mpApp.getApplicationURL();
+    }
+
+    /**
+     * @return true if
+     *         A) Any SharedContainerConfiguration is used
+     *         B) Test class contains REST clients with @JwtConfig
+     */
+    private boolean isJwtNeeded() {
+        if (sharedConfigClass != null)
+            return true;
+        return AnnotationSupport.findAnnotatedFields(testClass, JwtConfig.class).size() > 0;
     }
 
     private MicroProfileApplication<?> autoDiscoverMPApp(Class<?> clazz, boolean errorIfNone) {

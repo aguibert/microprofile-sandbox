@@ -19,10 +19,12 @@
 package org.eclipse.microprofile.system.test.app;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import javax.inject.Inject;
+import javax.ws.rs.ForbiddenException;
+import javax.ws.rs.NotAuthorizedException;
 
-import org.eclipse.microprofile.system.test.jupiter.JwtBuilder;
 import org.eclipse.microprofile.system.test.jupiter.JwtConfig;
 import org.eclipse.microprofile.system.test.jupiter.MicroProfileTest;
 import org.junit.jupiter.api.Test;
@@ -31,62 +33,44 @@ import org.testcontainers.junit.jupiter.Container;
 
 @MicroProfileTest
 public class SecuredSvcTest {
-    
+
     @Container
     public static MicroProfileApplication<?> app = new MicroProfileApplication<>()
                     .withAppContextRoot("/myservice")
-                    .withEnv("mp_jwt_verify_publickey", JwtBuilder.getPublicKey())                   
-                    .withEnv("mp_jwt_verify_issuer",JwtBuilder.DEFAULT_ISSUER)   
                     .withReadinessPath("/myservice/app/data/ping");
 
     @Inject
-    @JwtConfig(claims={"groups=users"})
+    @JwtConfig(claims = { "groups=users" })
     public static SecuredService securedSvc;
-    
+
     @Inject
-    @JwtConfig(claims={"groups=wrong"})
+    @JwtConfig(claims = { "groups=wrong" })
     public static SecuredService misSecuredSvc;
-    
-    @Inject    
+
+    @Inject
     public static SecuredService noJwtSecuredSvc;
-    
-    
-    
+
     @Test
     public void testHeaders() {
-    	System.out.println(securedSvc.getHeaders());  // for debugging
-    }
-    
-    @Test
-    public void testGetSecuredInfo() {
-    	String result = securedSvc.getSecuredInfo();
-    	assertTrue(result.contains("this is some secured info"));
-    }
-    
-    @Test
-    // user will be authenticated but not in role, expect 403
-    public void testGetSecuredInfoBadJwt() {
-    	boolean gotException = false;
-    	try {
-    		String result = misSecuredSvc.getSecuredInfo();
-    	} catch (javax.ws.rs.ForbiddenException e) {
-    		gotException = true;
-    	}
-    	assertTrue("didn't get expected exception", gotException);
-    }
-    
-    @Test
-    // no user, expect 401
-    public void testGetSecuredInfoNoJwt() {
-    	boolean gotException = false;
-    	try {
-    		String result = noJwtSecuredSvc.getSecuredInfo();
-    	} catch (javax.ws.rs.NotAuthorizedException e) {
-    		gotException = true;
-    	}
-    	assertTrue("didn't get expected exception", gotException);
+        System.out.println(securedSvc.getHeaders()); // for debugging
     }
 
-    
+    @Test
+    public void testGetSecuredInfo() {
+        String result = securedSvc.getSecuredInfo();
+        assertTrue(result.contains("this is some secured info"));
+    }
+
+    @Test
+    public void testGetSecuredInfoBadJwt() {
+        // user will be authenticated but not in role, expect 403
+        assertThrows(ForbiddenException.class, () -> misSecuredSvc.getSecuredInfo());
+    }
+
+    @Test
+    public void testGetSecuredInfoNoJwt() {
+        // no user, expect 401
+        assertThrows(NotAuthorizedException.class, () -> noJwtSecuredSvc.getSecuredInfo());
+    }
 
 }

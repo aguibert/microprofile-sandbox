@@ -37,11 +37,15 @@ import org.jose4j.lang.JoseException;
  * @author brutif
  */
 public class JwtBuilder {
+
+    public static final String MP_JWT_PUBLIC_KEY = "mp_jwt_verify_publickey";
+    public static final String MP_JWT_ISSUER = "mp_jwt_verify_issuer";
+
     private static final String BEGIN_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
     private static final String END_PUBLIC_KEY = "-----END PUBLIC KEY-----";
-    public static final String DEFAULT_ISSUER = JwtConfig.DEFAULT_ISSUER;
-    JwtClaims claims = null;
-    JsonWebSignature jws = null;
+
+    private JwtClaims claims = null;
+    private JsonWebSignature jws = null;
     static RsaJsonWebKey rsajwk = null;
     static JwtBuilder me = null;
 
@@ -82,11 +86,8 @@ public class JwtBuilder {
             me.claims.setClaim("sub", subject);
             me.claims.setClaim("upn", subject);
         }
-        me.claims.setIssuer(DEFAULT_ISSUER);
+        me.claims.setIssuer(issuer == null ? JwtConfig.DEFAULT_ISSUER : issuer);
         me.claims.setExpirationTimeMinutesInTheFuture(60);
-        if (issuer != null) {
-            me.claims.setIssuer(issuer);
-        }
         setClaims(claims);
         try {
             if (me.claims.getIssuedAt() == null) {
