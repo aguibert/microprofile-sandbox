@@ -23,24 +23,25 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.junit.jupiter.api.extension.ExtendWith;
-
-@Target({ElementType.FIELD})
+@Target({ ElementType.FIELD })
 @Retention(RetentionPolicy.RUNTIME)
 public @interface JwtConfig {
-	  public final String DEFAULT_ISSUER = "http://testissuer.com";
-	  public final String DEFAULT_SUBJECT = "testSubject";
-      public String issuer() default DEFAULT_ISSUER;
-      public String subject() default DEFAULT_SUBJECT;
-      
-      /**
-       * array of claims in the following format:
-       * key=value
-       * example: {"sub=fred", "upn=fred", "kid=123"}
-       * 
-       * For arrays, separate values with a comma.
-       * example: {"groups=red,green,admin", "sub=fred"}
-       * @return
-       */     
-      public String[] claims() default {};      
+    public static final String DEFAULT_ISSUER = "http://testissuer.com";
+    public static final String DEFAULT_SUBJECT = "testSubject";
+
+    public String issuer() default DEFAULT_ISSUER;
+
+    public String subject() default DEFAULT_SUBJECT;
+
+    /**
+     * array of claims in the following format:
+     * key=value
+     * example: {"sub=fred", "upn=fred", "kid=123"}
+     *
+     * For arrays, separate values with a comma.
+     * example: {"groups=red,green,admin", "sub=fred"}
+     *
+     * @return
+     */
+    public String[] claims() default {};
 }

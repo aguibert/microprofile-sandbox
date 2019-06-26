@@ -27,7 +27,6 @@ import java.util.Objects;
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
-import org.apache.cxf.jaxrs.client.JAXRSClientFactory;
 import org.apache.cxf.jaxrs.client.JAXRSClientFactoryBean;
 import org.junit.platform.commons.support.AnnotationSupport;
 import org.junit.platform.commons.support.ReflectionSupport;
@@ -37,8 +36,6 @@ import org.slf4j.LoggerFactory;
 public class JAXRSUtilities {
 
     static final Logger LOGGER = LoggerFactory.getLogger(JAXRSUtilities.class);
-    
-    
 
     public static <T> T createRestClient(Class<T> clazz, String appContextRoot, String applicationPath, String jwt) {
         Objects.requireNonNull(appContextRoot, "Supplied 'appContextRoot' must not be null");
@@ -50,22 +47,32 @@ public class JAXRSUtilities {
         JAXRSClientFactoryBean bean = new org.apache.cxf.jaxrs.client.JAXRSClientFactoryBean();
         bean.setProviders(providers);
         bean.setAddress(basePath);
-        if(jwt != null && jwt.length()>0) {
-	        Map headers = new HashMap();
-	        headers.put("Authorization", "Bearer " + jwt);
-	        bean.setHeaders(headers);
+        if (jwt != null && jwt.length() > 0) {
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Authorization", "Bearer " + jwt);
+            bean.setHeaders(headers);
+            LOGGER.debug("Using provided JWT auth header: " + jwt);
         }
         bean.setResourceClass(clazz);
-        return bean.create(clazz);        
+        return bean.create(clazz);
         //return JAXRSClientFactory.create(basePath, clazz, providers);
-    }
-    
-    public static <T> T createRestClient(Class<T> clazz, String appContextRoot) {
-    	return createRestClient(clazz, appContextRoot, null);
     }
 
     public static <T> T createRestClient(Class<T> clazz, String appContextRoot, String jwt) {
+        String appPath = locateApplicationPath(clazz);
+        return createRestClient(clazz, appContextRoot, appPath, jwt);
+    }
+
+    public static <T> T createRestClient(Class<T> clazz, String appContextRoot) {
+        return createRestClient(clazz, appContextRoot, null);
+    }
+
+    private static String locateApplicationPath(Class<?> clazz) {
         String resourcePackage = clazz.getPackage().getName();
+
+        // If the rest client directly extends Application, look for ApplicationPath on it
+        if (AnnotationSupport.isAnnotated(clazz, ApplicationPath.class))
+            return AnnotationSupport.findAnnotation(clazz, ApplicationPath.class).get().value();
 
         // First check for a javax.ws.rs.core.Application in the same package as the resource
         List<Class<?>> appClasses = ReflectionSupport.findAllClassesInPackage(resourcePackage,
@@ -88,17 +95,20 @@ public class JAXRSUtilities {
         if (appClasses.size() == 0) {
             LOGGER.info("No classes implementing 'javax.ws.rs.core.Application' found on classpath to set as context root for " + clazz +
                         ". Defaulting context root to '/'");
-            return createRestClient(clazz, appContextRoot, "", jwt);
+            return "";
         }
 
-        Class<?> selectedClass = appClasses.get(0);
-        if (appClasses.size() > 1) {
-            appClasses.sort((c1, c2) -> c1.getCanonicalName().compareTo(c2.getCanonicalName()));
-            LOGGER.warn("Found multiple classes implementing 'javax.ws.rs.core.Application' on classpath: " + appClasses +
-                        ". Setting context root to the first class discovered (" + selectedClass.getCanonicalName() + ")");
-        }
+        Class<?> selectedClass = appClasses.stream()
+                        .sorted((c1, c2) -> c1.getName().compareTo(c2.getName()))
+                        .findFirst()
+                        .get();
         ApplicationPath appPath = AnnotationSupport.findAnnotation(selectedClass, ApplicationPath.class).get();
-        return createRestClient(clazz, appContextRoot, appPath.value(), jwt);
+        if (appClasses.size() > 1) {
+            LOGGER.warn("Found multiple classes implementing 'javax.ws.rs.core.Application' on classpath: " + appClasses +
+                        ". Setting context root to the first class discovered (" + selectedClass.getCanonicalName() + ") with path: " +
+                        appPath.value());
+        }
+        return appPath.value();
     }
 
     private static String join(String firstPart, String secondPart) {

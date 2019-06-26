@@ -53,33 +53,37 @@ public class MicroProfileTestExtension implements BeforeAllCallback {
         injectRestClients(testClass, config);
     }
 
-    private static void injectRestClients(Class<?> clazz, TestcontainersConfiguration config) throws Exception {
+    private static void injectRestClients(Class<?> clazz, TestcontainersConfiguration config) {
         List<Field> restClientFields = AnnotationSupport.findAnnotatedFields(clazz, Inject.class);
         if (restClientFields.size() == 0)
             return;
 
-        String mpAppURL = config.getApplicationURL();
+        try {
+            String mpAppURL = config.getApplicationURL();
 
-        for (Field restClientField : restClientFields) {
-            if (!Modifier.isPublic(restClientField.getModifiers()) ||
-                !Modifier.isStatic(restClientField.getModifiers()) ||
-                Modifier.isFinal(restClientField.getModifiers())) {
-                throw new ExtensionConfigurationException("REST-client field must be public, static, and non-final: " + restClientField.getName());
+            for (Field restClientField : restClientFields) {
+                if (!Modifier.isPublic(restClientField.getModifiers()) ||
+                    !Modifier.isStatic(restClientField.getModifiers()) ||
+                    Modifier.isFinal(restClientField.getModifiers())) {
+                    throw new ExtensionConfigurationException("REST-client field must be public, static, and non-final: " + restClientField.getName());
+                }
+                String jwt = createJwtIfNeeded(restClientField);
+                Object restClient = JAXRSUtilities.createRestClient(restClientField.getType(), mpAppURL, jwt);
+                //Object restClient = JAXRSUtilities.createRestClient(restClientField.getType(), mpAppURL);
+                restClientField.set(null, restClient);
+                LOGGER.debug("Injecting rest client for " + restClientField);
             }
-            String jwt = createJwtIfNeeded(restClientField);
-            Object restClient = JAXRSUtilities.createRestClient(restClientField.getType(), mpAppURL, jwt);
-            //Object restClient = JAXRSUtilities.createRestClient(restClientField.getType(), mpAppURL);
-            restClientField.set(null, restClient);
-            LOGGER.debug("Injecting rest client for " + restClientField);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
-    
+
     private static String createJwtIfNeeded(Field restClientField) {
-    	Field f = restClientField;
-    	JwtConfig anno = f.getDeclaredAnnotation(JwtConfig.class);
-    	if (anno != null) {
-    		return JwtBuilder.buildJwt(anno.subject(), anno.issuer(), anno.claims());
-    	}    	
-    	return null;
+        Field f = restClientField;
+        JwtConfig anno = f.getDeclaredAnnotation(JwtConfig.class);
+        if (anno != null) {
+            return JwtBuilder.buildJwt(anno.subject(), anno.issuer(), anno.claims());
+        }
+        return null;
     }
 }
