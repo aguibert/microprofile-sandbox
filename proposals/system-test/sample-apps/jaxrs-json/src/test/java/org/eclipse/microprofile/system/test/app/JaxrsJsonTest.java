@@ -28,6 +28,7 @@ import java.util.Collection;
 import javax.inject.Inject;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.NotFoundException;
+import javax.ws.rs.ProcessingException;
 
 import org.eclipse.microprofile.system.test.app.Person;
 import org.eclipse.microprofile.system.test.app.PersonService;
@@ -127,6 +128,11 @@ public class JaxrsJsonTest {
     @Test
     public void testCreateBadPersonNameTooLong() {
         assertThrows(BadRequestException.class, () -> personSvc.createPerson("NameTooLongPersonNameTooLongPersonNameTooLongPerson", 5));
+    }
+    
+    @Test
+    public void testNonJaxrsMethod() {
+        assertThrows(ProcessingException.class, () -> personSvc.nonJaxrsMethod());
     }
 
 }
