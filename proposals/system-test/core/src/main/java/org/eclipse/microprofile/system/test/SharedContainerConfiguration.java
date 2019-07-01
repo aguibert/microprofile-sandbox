@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.eclipse.microprofile.system.test.jupiter;
+package org.eclipse.microprofile.system.test;
 
 /**
  * To be used in conjunction with {@link SharedContainerConfig}

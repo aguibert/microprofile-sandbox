@@ -26,10 +26,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
 
-import org.eclipse.microprofile.system.test.jupiter.JwtBuilder;
-import org.eclipse.microprofile.system.test.jupiter.JwtConfig;
-import org.eclipse.microprofile.system.test.jupiter.SharedContainerConfig;
-import org.eclipse.microprofile.system.test.jupiter.SharedContainerConfiguration;
+import org.eclipse.microprofile.system.test.ApplicationEnvironment;
+import org.eclipse.microprofile.system.test.SharedContainerConfig;
+import org.eclipse.microprofile.system.test.SharedContainerConfiguration;
+import org.eclipse.microprofile.system.test.jwt.JwtBuilder;
+import org.eclipse.microprofile.system.test.jwt.JwtConfig;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
 import org.junit.platform.commons.support.AnnotationSupport;
 import org.junit.platform.commons.support.HierarchyTraversalMode;
@@ -40,16 +41,17 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.microprofile.MicroProfileApplication;
 import org.testcontainers.junit.jupiter.Container;
 
-public class TestcontainersConfiguration {
+public class TestcontainersConfiguration implements ApplicationEnvironment {
 
     private static final Logger LOG = LoggerFactory.getLogger(TestcontainersConfiguration.class);
 
-    private final Class<?> testClass;
+    private Class<?> testClass;
     private Class<? extends SharedContainerConfiguration> sharedConfigClass;
     private final Set<GenericContainer<?>> unsharedContainers = new HashSet<>();
     private final Set<GenericContainer<?>> sharedContainers = new HashSet<>();
 
-    public TestcontainersConfiguration(Class<?> testClass) {
+    @Override
+    public void applyConfiguration(Class<?> testClass) {
         this.testClass = testClass;
 
         if (testClass.isAnnotationPresent(SharedContainerConfig.class)) {
@@ -57,9 +59,7 @@ public class TestcontainersConfiguration {
             sharedContainers.addAll(discoverContainers(sharedConfigClass));
         }
         unsharedContainers.addAll(discoverContainers(testClass));
-    }
 
-    public void applyConfiguration() {
         // Put all containers in the same network if no networks are explicitly defined
         boolean networksDefined = false;
         if (sharedConfigClass != null) {
@@ -93,7 +93,8 @@ public class TestcontainersConfiguration {
         }
     }
 
-    public void startContainers() {
+    @Override
+    public void start() {
         List<GenericContainer<?>> containersToStart = new ArrayList<>();
 
         // Start shared containers first
@@ -121,6 +122,7 @@ public class TestcontainersConfiguration {
         LOG.info("All containers started in " + (System.currentTimeMillis() - start) + "ms");
     }
 
+    @Override
     public String getApplicationURL() {
         MicroProfileApplication<?> mpApp = autoDiscoverMPApp(testClass, true);
 

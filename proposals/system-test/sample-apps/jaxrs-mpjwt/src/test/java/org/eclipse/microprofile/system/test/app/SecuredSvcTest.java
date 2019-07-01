@@ -25,8 +25,8 @@ import javax.inject.Inject;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.NotAuthorizedException;
 
-import org.eclipse.microprofile.system.test.jupiter.JwtConfig;
 import org.eclipse.microprofile.system.test.jupiter.MicroProfileTest;
+import org.eclipse.microprofile.system.test.jwt.JwtConfig;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.microprofile.MicroProfileApplication;
 import org.testcontainers.junit.jupiter.Container;

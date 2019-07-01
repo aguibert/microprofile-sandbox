@@ -18,7 +18,7 @@
  */
 package org.eclipse.microprofile.system.test.app;
 
-import org.eclipse.microprofile.system.test.jupiter.SharedContainerConfiguration;
+import org.eclipse.microprofile.system.test.SharedContainerConfiguration;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.microprofile.MicroProfileApplication;
 import org.testcontainers.junit.jupiter.Container;

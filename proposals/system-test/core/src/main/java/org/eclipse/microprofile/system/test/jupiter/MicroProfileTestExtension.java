@@ -24,7 +24,11 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import org.eclipse.microprofile.system.test.ApplicationEnvironment;
+import org.eclipse.microprofile.system.test.ManuallyStartedConfiguration;
 import org.eclipse.microprofile.system.test.jaxrs.JAXRSUtilities;
+import org.eclipse.microprofile.system.test.jwt.JwtBuilder;
+import org.eclipse.microprofile.system.test.jwt.JwtConfig;
 import org.eclipse.microprofile.system.test.testcontainers.TestcontainersConfiguration;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionConfigurationException;
@@ -47,13 +51,15 @@ public class MicroProfileTestExtension implements BeforeAllCallback {
         Class<?> testClass = context.getRequiredTestClass();
         // For now this is hard-coded to using Testcontainers for container management.
         // In the future, this could be configurable to something besides Testcontainers
-        TestcontainersConfiguration config = new TestcontainersConfiguration(testClass);
-        config.applyConfiguration();
-        config.startContainers();
+        ApplicationEnvironment config = ManuallyStartedConfiguration.isAvailable() //
+                        ? new ManuallyStartedConfiguration() //
+                        : new TestcontainersConfiguration();
+        config.applyConfiguration(testClass);
+        config.start();
         injectRestClients(testClass, config);
     }
 
-    private static void injectRestClients(Class<?> clazz, TestcontainersConfiguration config) {
+    private static void injectRestClients(Class<?> clazz, ApplicationEnvironment config) {
         List<Field> restClientFields = AnnotationSupport.findAnnotatedFields(clazz, Inject.class);
         if (restClientFields.size() == 0)
             return;

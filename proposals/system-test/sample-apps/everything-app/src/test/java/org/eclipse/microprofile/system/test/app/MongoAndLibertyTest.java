@@ -25,8 +25,8 @@ import java.util.Collection;
 
 import javax.inject.Inject;
 
+import org.eclipse.microprofile.system.test.SharedContainerConfig;
 import org.eclipse.microprofile.system.test.jupiter.MicroProfileTest;
-import org.eclipse.microprofile.system.test.jupiter.SharedContainerConfig;
 import org.junit.jupiter.api.Test;
 
 @MicroProfileTest
