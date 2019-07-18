@@ -26,6 +26,7 @@ import java.lang.annotation.Target;
 @Target({ ElementType.FIELD })
 @Retention(RetentionPolicy.RUNTIME)
 public @interface JwtConfig {
+
     public static final String DEFAULT_ISSUER = "http://testissuer.com";
     public static final String DEFAULT_SUBJECT = "testSubject";
 

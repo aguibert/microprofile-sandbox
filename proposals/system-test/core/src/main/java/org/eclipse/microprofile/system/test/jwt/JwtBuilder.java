@@ -71,7 +71,7 @@ public class JwtBuilder {
         return BEGIN_PUBLIC_KEY + "\r\n" + SimplePEMEncoder.encode(encoded) + END_PUBLIC_KEY;
     }
 
-    public static String buildJwt(String subject, String issuer, String[] claims) {
+    public static String buildJwt(String subject, String issuer, String[] claims) throws JoseException, MalformedClaimException {
         me = new JwtBuilder();
         init();
         me.claims = new JwtClaims();
@@ -88,27 +88,17 @@ public class JwtBuilder {
         me.claims.setIssuer(issuer == null ? JwtConfig.DEFAULT_ISSUER : issuer);
         me.claims.setExpirationTimeMinutesInTheFuture(60);
         setClaims(claims);
-        try {
-            if (me.claims.getIssuedAt() == null) {
-                me.claims.setIssuedAtToNow();
-            }
-        } catch (MalformedClaimException e1) {
-            e1.printStackTrace(System.out);
+        if (me.claims.getIssuedAt() == null) {
+            me.claims.setIssuedAtToNow();
         }
         me.jws.setPayload(me.claims.toJson());
-        try {
-            return me.jws.getCompactSerialization();
-        } catch (JoseException e) {
-            e.printStackTrace(System.out);
-            return null;
-        }
-
+        return me.jws.getCompactSerialization();
     }
 
-    private static void setClaims(String[] claims) {
+    private static void setClaims(String[] claims) throws MalformedClaimException {
         for (String claim : claims) {
             if (!claim.contains("="))
-                continue;
+                throw new MalformedClaimException("Claim did not contain an equals sign (=). Each claim must be of the form 'key=value'");
             int loc = claim.indexOf('=');
             String claimName = claim.substring(0, loc);
             Object claimValue = claim.substring(loc + 1);
