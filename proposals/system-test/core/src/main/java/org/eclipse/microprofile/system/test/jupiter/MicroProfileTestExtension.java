@@ -25,7 +25,6 @@ import java.util.List;
 import javax.inject.Inject;
 
 import org.eclipse.microprofile.system.test.ApplicationEnvironment;
-import org.eclipse.microprofile.system.test.ManuallyStartedConfiguration;
 import org.eclipse.microprofile.system.test.jaxrs.JAXRSUtilities;
 import org.eclipse.microprofile.system.test.jwt.JwtBuilder;
 import org.eclipse.microprofile.system.test.jwt.JwtConfig;
@@ -51,9 +50,12 @@ public class MicroProfileTestExtension implements BeforeAllCallback {
         Class<?> testClass = context.getRequiredTestClass();
         // For now this is hard-coded to using Testcontainers for container management.
         // In the future, this could be configurable to something besides Testcontainers
-        ApplicationEnvironment config = ManuallyStartedConfiguration.isAvailable() //
-                        ? new ManuallyStartedConfiguration() //
-                        : new TestcontainersConfiguration();
+        String envProp = ApplicationEnvironment.getEnvClass();
+        Class<?> envClass = envProp != null && !envProp.isEmpty() ? //
+                        Class.forName(envProp) : //
+                        TestcontainersConfiguration.class;
+        LOGGER.info("Using ApplicationEnvironment class: " + envClass.getCanonicalName());
+        ApplicationEnvironment config = (ApplicationEnvironment) envClass.newInstance();
         config.applyConfiguration(testClass);
         config.start();
         injectRestClients(testClass, config);
@@ -88,7 +90,11 @@ public class MicroProfileTestExtension implements BeforeAllCallback {
         Field f = restClientField;
         JwtConfig anno = f.getDeclaredAnnotation(JwtConfig.class);
         if (anno != null) {
-            return JwtBuilder.buildJwt(anno.subject(), anno.issuer(), anno.claims());
+            try {
+                return JwtBuilder.buildJwt(anno.subject(), anno.issuer(), anno.claims());
+            } catch (Exception e) {
+                throw new ExtensionConfigurationException("Error while building JWT for field " + f + " with JwtConfig: " + anno, e);
+            }
         }
         return null;
     }

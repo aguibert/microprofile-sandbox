@@ -47,8 +47,8 @@ public class TestcontainersConfiguration implements ApplicationEnvironment {
 
     private Class<?> testClass;
     private Class<? extends SharedContainerConfiguration> sharedConfigClass;
-    private final Set<GenericContainer<?>> unsharedContainers = new HashSet<>();
-    private final Set<GenericContainer<?>> sharedContainers = new HashSet<>();
+    final Set<GenericContainer<?>> unsharedContainers = new HashSet<>();
+    final Set<GenericContainer<?>> sharedContainers = new HashSet<>();
 
     @Override
     public void applyConfiguration(Class<?> testClass) {
@@ -114,6 +114,9 @@ public class TestcontainersConfiguration implements ApplicationEnvironment {
         containersToStart.addAll(unsharedContainers);
         containersToStart.removeIf(c -> c.isRunning());
 
+        if (containersToStart.size() == 0)
+            return;
+
         LOG.info("Starting containers in parallel for " + testClass);
         for (GenericContainer<?> c : containersToStart)
             LOG.info("  " + c.getImage());
@@ -177,7 +180,7 @@ public class TestcontainersConfiguration implements ApplicationEnvironment {
         return null;
     }
 
-    private Set<GenericContainer<?>> discoverContainers(Class<?> clazz) {
+    protected Set<GenericContainer<?>> discoverContainers(Class<?> clazz) {
         Set<GenericContainer<?>> discoveredContainers = new HashSet<>();
         for (Field containerField : AnnotationSupport.findAnnotatedFields(clazz, Container.class)) {
             if (!Modifier.isPublic(containerField.getModifiers()))
@@ -195,6 +198,12 @@ public class TestcontainersConfiguration implements ApplicationEnvironment {
             }
         }
         return discoveredContainers;
+    }
+
+    protected Set<GenericContainer<?>> allContainers() {
+        Set<GenericContainer<?>> all = new HashSet<>(unsharedContainers);
+        all.addAll(sharedContainers);
+        return all;
     }
 
 }

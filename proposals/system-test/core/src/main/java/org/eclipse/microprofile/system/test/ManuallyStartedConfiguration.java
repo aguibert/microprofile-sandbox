@@ -31,6 +31,20 @@ public class ManuallyStartedConfiguration implements ApplicationEnvironment {
                System.getenv(APPLICATION_URL_PROPERTY) != null;
     }
 
+    public static String applicationURL() {
+        String url = System.getProperty(APPLICATION_URL_PROPERTY);
+        if (url == null || url.isEmpty())
+            url = System.getenv(APPLICATION_URL_PROPERTY);
+        if (url == null || url.isEmpty())
+            throw new IllegalStateException("The property '" + APPLICATION_URL_PROPERTY +
+                                            "' must be set in order to use this ApplicationEnvironment");
+        return url;
+    }
+
+    public ManuallyStartedConfiguration() {
+        ManuallyStartedConfiguration.applicationURL();
+    }
+
     @Override
     public void applyConfiguration(Class<?> testClass) {
         // no-op
@@ -43,13 +57,7 @@ public class ManuallyStartedConfiguration implements ApplicationEnvironment {
 
     @Override
     public String getApplicationURL() {
-        String url = System.getProperty(APPLICATION_URL_PROPERTY);
-        if (url == null || url.isEmpty())
-            url = System.getenv(APPLICATION_URL_PROPERTY);
-        if (url == null || url.isEmpty())
-            throw new IllegalStateException("The property '" + APPLICATION_URL_PROPERTY +
-                                            "' must be set in order to use this ApplicationEnvironment");
-        return url;
+        return ManuallyStartedConfiguration.applicationURL();
     }
 
 }

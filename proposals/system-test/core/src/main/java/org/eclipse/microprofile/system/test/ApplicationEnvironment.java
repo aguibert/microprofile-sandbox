@@ -20,6 +20,15 @@ package org.eclipse.microprofile.system.test;
 
 public interface ApplicationEnvironment {
 
+    public static String ENV_CLASS = "MP_TEST_ENV_CLASS";
+
+    public static String getEnvClass() {
+        String strategy = System.getenv(ENV_CLASS);
+        if (strategy == null)
+            strategy = System.getProperty(ENV_CLASS);
+        return strategy;
+    }
+
     public void applyConfiguration(Class<?> testClass);
 
     public void start();
